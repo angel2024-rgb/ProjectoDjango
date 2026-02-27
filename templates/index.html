@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Tareas</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .formulario {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        input, textarea, button {
+            margin: 10px 0;
+            padding: 10px;
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .tarea {
+            background-color: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .tarea.completada {
+            background-color: #e8f5e8;
+            text-decoration: line-through;
+            opacity: 0.8;
+        }
+        .tarea h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        .tarea p {
+            margin: 5px 0;
+            color: #666;
+        }
+        .fecha {
+            font-size: 0.8em;
+            color: #999;
+        }
+        .botones {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .boton-completar {
+            background-color: #2196F3;
+            flex: 1;
+        }
+        .boton-eliminar {
+            background-color: #f44336;
+            flex: 1;
+        }
+        .filtros {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .filtro {
+            flex: 1;
+            background-color: #ddd;
+            color: #333;
+        }
+        .filtro.activo {
+            background-color: #333;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>📋 Gestor de Tareas Personales</h1>
+
+    <!-- Filtros -->
+    <div class="filtros">
+        <button class="filtro activo" onclick="cargarTareas('todas', event)">Todas</button>
+        <button class="filtro" onclick="cargarTareas('pendientes', event)">Pendientes</button>
+        <button class="filtro" onclick="cargarTareas('completadas', event)">Completadas</button>
+    </div>
+    <!-- Formulario para crear tareas -->
+    <div class="formulario">
+        <h2>Crear nueva tarea</h2>
+        <input type="text" id="titulo" placeholder="Título de la tarea" required>
+        <textarea id="descripcion" placeholder="Descripción (opcional)" rows="3"></textarea>
+        <button onclick="crearTarea()">Crear Tarea</button>
+    </div>
+
+    <!-- Lista de tareas -->
+    <div id="lista-tareas"></div>
+
+    <script>
+
+        // Función para obtener el token CSRF de las cookies
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // Configuración
+        const API_URL = '/api/tareas/';
+        let filtroActual = 'todas';
+
+        // Función para cargar tareas
+        async function cargarTareas(filtro = 'todas', event = null) {
+            console.log('Cargando tareas con filtro:', filtro);
+            
+            filtroActual = filtro;
+            
+            // Actualizar botones de filtro SOLO si hay un evento (viene de un clic)
+            if (event) {
+                document.querySelectorAll('.filtro').forEach(btn => {
+                    btn.classList.remove('activo');
+                });
+                event.target.classList.add('activo');
+            } else {
+                // Si no hay evento (viene de eliminar/crear), actualizar visualmente los botones
+                document.querySelectorAll('.filtro').forEach(btn => {
+                    btn.classList.remove('activo');
+                    if (btn.textContent.toLowerCase() === filtro || 
+                        (filtro === 'todas' && btn.textContent === 'Todas') ||
+                        (filtro === 'pendientes' && btn.textContent === 'Pendientes') ||
+                        (filtro === 'completadas' && btn.textContent === 'Completadas')) {
+                        btn.classList.add('activo');
+                    }
+                });
+            }
+
+            // Determinar URL según filtro
+            let url = API_URL;
+            if (filtro === 'pendientes') {
+                url = API_URL + 'pendientes/';
+            } else if (filtro === 'completadas') {
+                url = API_URL + 'completadas/';
+            }
+
+            try {
+                const response = await fetch(url, {
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const tareas = await response.json();
+                    mostrarTareas(tareas);
+                } else if (response.status === 403) {
+                    document.getElementById('lista-tareas').innerHTML = 
+                        '<p style="color: red; text-align: center;">Error: No autenticado. Ve al <a href="http://127.0.0.1:8000/admin/" target="_blank">admin</a> primero.</p>';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('lista-tareas').innerHTML = 
+                    '<p style="color: red;">Error al cargar tareas</p>';
+            }
+        }
+
+        // Función para mostrar tareas
+        function mostrarTareas(tareas) {
+            console.log('Mostrando tareas. Cantidad:', tareas.length);
+            const contenedor = document.getElementById('lista-tareas');
+            
+            if (tareas.length === 0) {
+                contenedor.innerHTML = '<p style="text-align: center;">No hay tareas que mostrar</p>';
+                return;
+            }
+
+            let html = '';
+            tareas.forEach(tarea => {
+                const fecha = new Date(tarea.fecha_creacion).toLocaleDateString();
+                const completadaClass = tarea.completada ? 'completada' : '';
+                
+                html += `
+                    <div class="tarea ${completadaClass}" id="tarea-${tarea.id}">
+                        <h3>${tarea.titulo}</h3>
+                        <p>${tarea.descripcion || 'Sin descripción'}</p>
+                        <p class="fecha">Creada: ${fecha}</p>
+                        <div class="botones">
+                            ${!tarea.completada ? 
+                                `<button class="boton-completar" onclick="marcarCompletada(${tarea.id})">✓ Completar</button>` : 
+                                `<button class="boton-completar" onclick="marcarPendiente(${tarea.id})">↩ Pendiente</button>`
+                            }
+                            <button class="boton-eliminar" onclick="eliminarTarea(${tarea.id})">✗ Eliminar</button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            contenedor.innerHTML = html;
+        }
+
+        // Función para crear tarea
+        async function crearTarea() {
+            const titulo = document.getElementById('titulo').value;
+            const descripcion = document.getElementById('descripcion').value;
+
+            if (!titulo) {
+                alert('El título es obligatorio');
+                return;
+            }
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        titulo: titulo,
+                        descripcion: descripcion,
+                        completada: false
+                    })
+                });
+
+                if (response.ok) {
+                    document.getElementById('titulo').value = '';
+                    document.getElementById('descripcion').value = '';
+                    await cargarTareas(filtroActual);  // ← await aquí
+                } else {
+                    console.error('Error al crear:', response.status);
+                    const error = await response.json();
+                    console.error('Detalle:', error);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+
+
+        // Función para marcar tarea como completada
+        async function marcarCompletada(id) {
+            try {
+                const response = await fetch(`${API_URL}${id}/marcar_completada/`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }
+                });
+
+                if (response.ok) {
+                    await cargarTareas(filtroActual);  // ← await aquí
+                } else {
+                    console.error('Error al marcar completada:', response.status);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        // Función para marcar tarea como pendiente
+        async function marcarPendiente(id) {
+            try {
+                const response = await fetch(`${API_URL}${id}/marcar_pendiente/`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }
+                });
+
+                if (response.ok) {
+                    await cargarTareas(filtroActual);  // ← await aquí
+                } else {
+                    console.error('Error al marcar pendiente:', response.status);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        // Función para eliminar tarea
+        async function eliminarTarea(id) {
+            console.log('1. Iniciando eliminación de tarea:', id);
+            
+            if (!confirm('¿Estás seguro de eliminar esta tarea?')) {
+                console.log('2. Usuario canceló');
+                return;
+            }
+
+            try {
+                console.log('3. Enviando petición DELETE a:', `${API_URL}${id}/`);
+                
+                const response = await fetch(`${API_URL}${id}/`, {
+                    method: 'DELETE',
+                    credentials: 'include',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }
+                });
+
+                console.log('4. Respuesta recibida. Status:', response.status);
+                
+                if (response.ok) {
+                    console.log('5. Eliminación exitosa, recargando tareas...');
+                    await cargarTareas(filtroActual);
+                    console.log('6. Tareas recargadas');
+                } else {
+                    console.error('5. Error en eliminación. Status:', response.status);
+                    const error = await response.json();
+                    console.error('Detalle del error:', error);
+                }
+            } catch (error) {
+                console.error('Error en catch:', error);
+            }
+        }
+
+        // Cargar tareas al iniciar
+        document.addEventListener('DOMContentLoaded', () => {cargarTareas('todas', null);});
+    </script>
+</body>
+</html> 
