@@ -92,27 +92,99 @@
             background-color: #333;
             color: white;
         }
+        .auth-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .auth-tabs button {
+            flex: 1;
+            padding: 10px;
+            background: #ddd;
+            border: none;
+            cursor: pointer;
+        }
+
+        .auth-tabs button.active {
+            background: #333;
+            color: white;
+        }
+
+        .auth-form {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .auth-form input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        #user-info {
+            text-align: right;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #e0e0e0;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
     <h1>📋 Gestor de Tareas Personales</h1>
 
-    <!-- Filtros -->
-    <div class="filtros">
-        <button class="filtro activo" onclick="cargarTareas('todas', event)">Todas</button>
-        <button class="filtro" onclick="cargarTareas('pendientes', event)">Pendientes</button>
-        <button class="filtro" onclick="cargarTareas('completadas', event)">Completadas</button>
-    </div>
-    <!-- Formulario para crear tareas -->
-    <div class="formulario">
-        <h2>Crear nueva tarea</h2>
-        <input type="text" id="titulo" placeholder="Título de la tarea" required>
-        <textarea id="descripcion" placeholder="Descripción (opcional)" rows="3"></textarea>
-        <button onclick="crearTarea()">Crear Tarea</button>
+    <div id="user-info"></div>
+    <!-- SECCIÓN DE AUTENTICACIÓN (visible cuando NO hay usuario) -->
+    <div id="auth-section">
+        <h2>🔐 Iniciar Sesión / Registrarse</h2>
+        
+        <!-- Pestañas para cambiar entre Login y Registro -->
+        <div class="auth-tabs">
+            <button id="tab-login" class="active">Iniciar Sesión</button>
+            <button id="tab-registro">Registrarse</button>
+        </div>
+        
+        <!-- FORMULARIO DE LOGIN -->
+        <div id="login-form" class="auth-form">
+            <input type="text" id="login-username" placeholder="Usuario">
+            <input type="password" id="login-password" placeholder="Contraseña">
+            <button onclick="loginUsuario()">Ingresar</button>
+        </div>
+        
+        <!-- FORMULARIO DE REGISTRO (oculto inicialmente) -->
+        <div id="registro-form" class="auth-form" style="display: none;">
+            <input type="text" id="reg-username" placeholder="Usuario">
+            <input type="email" id="reg-email" placeholder="Email">
+            <input type="password" id="reg-password" placeholder="Contraseña">
+            <input type="password" id="reg-password2" placeholder="Confirmar contraseña">
+            <button onclick="registrarUsuario()">Registrarse</button>
+        </div>
     </div>
 
-    <!-- Lista de tareas -->
-    <div id="lista-tareas"></div>
+    <div id="tareas-section" style="display: none;">
+        <!-- Filtros -->
+        <div class="filtros">
+            <button class="filtro activo" onclick="cargarTareas('todas', event)">Todas</button>
+            <button class="filtro" onclick="cargarTareas('pendientes', event)">Pendientes</button>
+            <button class="filtro" onclick="cargarTareas('completadas', event)">Completadas</button>
+        </div>
+        <!-- Formulario para crear tareas -->
+        <div class="formulario">
+            <h2>Crear nueva tarea</h2>
+            <input type="text" id="titulo" placeholder="Título de la tarea" required>
+            <textarea id="descripcion" placeholder="Descripción (opcional)" rows="3"></textarea>
+            <button onclick="crearTarea()">Crear Tarea</button>
+        </div>
+
+        <!-- Lista de tareas -->
+        <div id="lista-tareas"></div>
+    </div>
 
     <script>
 
@@ -135,6 +207,7 @@
         // Configuración
         const API_URL = '/api/tareas/';
         let filtroActual = 'todas';
+        let usuarioActual = null;
 
         // Función para cargar tareas
         async function cargarTareas(filtro = 'todas', event = null) {
@@ -142,14 +215,14 @@
             
             filtroActual = filtro;
             
-            // Actualizar botones de filtro SOLO si hay un evento (viene de un clic)
+            // Actualizar botones de filtro SOLO si hay un evento
             if (event) {
                 document.querySelectorAll('.filtro').forEach(btn => {
                     btn.classList.remove('activo');
                 });
                 event.target.classList.add('activo');
             } else {
-                // Si no hay evento (viene de eliminar/crear), actualizar visualmente los botones
+                // Si no hay evento (eliminar/crear), actualizar visualmente los botones
                 document.querySelectorAll('.filtro').forEach(btn => {
                     btn.classList.remove('activo');
                     if (btn.textContent.toLowerCase() === filtro || 
@@ -250,7 +323,7 @@
                 if (response.ok) {
                     document.getElementById('titulo').value = '';
                     document.getElementById('descripcion').value = '';
-                    await cargarTareas(filtroActual);  // ← await aquí
+                    await cargarTareas(filtroActual);  
                 } else {
                     console.error('Error al crear:', response.status);
                     const error = await response.json();
@@ -275,7 +348,7 @@
                 });
 
                 if (response.ok) {
-                    await cargarTareas(filtroActual);  // ← await aquí
+                    await cargarTareas(filtroActual);  
                 } else {
                     console.error('Error al marcar completada:', response.status);
                 }
@@ -296,7 +369,7 @@
                 });
 
                 if (response.ok) {
-                    await cargarTareas(filtroActual);  // ← await aquí
+                    await cargarTareas(filtroActual);  
                 } else {
                     console.error('Error al marcar pendiente:', response.status);
                 }
@@ -341,8 +414,167 @@
             }
         }
 
+        function actualizarUIporUsuario() {
+            const authSection = document.getElementById('auth-section');
+            const tareasSection = document.getElementById('tareas-section');
+            const userInfo = document.getElementById('user-info');
+            
+            if (usuarioActual) {
+                // Usuario logueado
+                authSection.style.display = 'none';
+                tareasSection.style.display = 'block';
+                userInfo.innerHTML = `👤 ${usuarioActual.username} | <button onclick="logoutUsuario()">Cerrar sesión</button>`;
+            } else {
+                // Usuario no logueado
+                authSection.style.display = 'block';
+                tareasSection.style.display = 'none';
+                userInfo.innerHTML = '';  // Vacío o mensaje invitando a login
+            }
+        }
+
+        // Cambiar entre login y registro
+        document.getElementById('tab-login').addEventListener('click', function() {
+            document.getElementById('login-form').style.display = 'block';
+            document.getElementById('registro-form').style.display = 'none';
+            this.classList.add('active');
+            document.getElementById('tab-registro').classList.remove('active');
+        });
+
+        document.getElementById('tab-registro').addEventListener('click', function() {
+            document.getElementById('login-form').style.display = 'none';
+            document.getElementById('registro-form').style.display = 'block';
+            this.classList.add('active');
+            document.getElementById('tab-login').classList.remove('active');
+        });
+
+        async function loginUsuario() {
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+            
+            // Validar que no estén vacíos
+            if (!username || !password) {
+                alert('Completa todos los campos');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/usuarios/login/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    usuarioActual = data.usuario;
+                    actualizarUIporUsuario();
+                    cargarTareas('todas');  // Cargar sus tareas
+                } else {
+                    alert('Error: ' + (data.error || 'Credenciales inválidas'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al conectar con el servidor');
+            }
+        }
+
+        async function registrarUsuario() {
+            const username = document.getElementById('reg-username').value;
+            const email = document.getElementById('reg-email').value;
+            const password = document.getElementById('reg-password').value;
+            const password2 = document.getElementById('reg-password2').value;
+            
+            // Validaciones básicas
+            if (!username || !email || !password || !password2) {
+                alert('Completa todos los campos');
+                return;
+            }
+            
+            if (password !== password2) {
+                alert('Las contraseñas no coinciden');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/usuarios/registro/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({ username, email, password, password2 })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert('Registro exitoso. Ahora puedes iniciar sesión.');
+                    // Cambiar a pestaña de login
+                    document.getElementById('tab-login').click();
+                    // Limpiar formulario
+                    document.getElementById('reg-username').value = '';
+                    document.getElementById('reg-email').value = '';
+                    document.getElementById('reg-password').value = '';
+                    document.getElementById('reg-password2').value = '';
+                } else {
+                    // Mostrar errores del servidor
+                    const errores = Object.values(data).flat().join('\n');
+                    alert('Error en registro:\n' + errores);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al conectar con el servidor');
+            }
+        }
+
+        async function logoutUsuario() {
+            try {
+                const response = await fetch('/api/usuarios/logout/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }
+                });
+                
+                if (response.ok) {
+                    usuarioActual = null;
+                    actualizarUIporUsuario();
+                    // Limpiar lista de tareas
+                    document.getElementById('lista-tareas').innerHTML = '';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        async function cargarPerfil() {
+            try {
+                const response = await fetch('/api/usuarios/perfil/', {
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    usuarioActual = await response.json();
+                } else {
+                    usuarioActual = null;
+                }
+            } catch (error) {
+                console.error('Error al cargar perfil:', error);
+                usuarioActual = null;
+            } finally {
+                actualizarUIporUsuario();  // Siempre actualizar UI
+                if (usuarioActual) {
+                    cargarTareas('todas', null);  // Si hay usuario, cargar tareas
+                }
+            }
+        }
+
         // Cargar tareas al iniciar
-        document.addEventListener('DOMContentLoaded', () => {cargarTareas('todas', null);});
+        document.addEventListener('DOMContentLoaded', () => {cargarPerfil();});
     </script>
 </body>
 </html> 

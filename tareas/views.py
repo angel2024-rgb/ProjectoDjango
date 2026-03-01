@@ -32,7 +32,7 @@ class TareaViewSet(viewsets.ModelViewSet):
         """
         Marca una tarea específica como completada
         """
-        tarea = self.get_object()  # Obtiene la tarea con el ID (pk)
+        tarea = self.get_object()
         tarea.completada = True
         tarea.save()
         return Response({'mensaje': 'Tarea marcada como completada'}, 

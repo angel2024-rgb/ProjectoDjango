@@ -21,6 +21,7 @@ from tareas.views import frontend
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('tareas.urls')),
+    path('api/usuarios/', include('usuarios.urls')),
     path('api/auth/', include('rest_framework.urls')),
     path('', frontend, name='frontend'),
 ]
