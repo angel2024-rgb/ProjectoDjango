@@ -20,7 +20,7 @@ class RegistroView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 
-class LoginView(APIView):
+""" class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
     
     def post(self, request):
@@ -48,7 +48,7 @@ class LoginView(APIView):
         else:
             return Response({
                 'error': 'Credenciales inválidas'
-            }, status=status.HTTP_401_UNAUTHORIZED)  
+            }, status=status.HTTP_401_UNAUTHORIZED)  """ 
 
 
 class PerfilView(APIView):
@@ -60,11 +60,11 @@ class PerfilView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class LogoutView(APIView):
+""" class LogoutView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     
     def post(self, request):
         logout(request)
         return Response({
             'mensaje': 'Sesión cerrada exitosamente'
-        }, status=status.HTTP_200_OK)
+        }, status=status.HTTP_200_OK) """
