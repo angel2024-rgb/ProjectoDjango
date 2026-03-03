@@ -291,7 +291,7 @@
                         <div class="botones">
                             ${!tarea.completada ? 
                                 `<button class="boton-completar" onclick="marcarCompletada(${tarea.id})">✓ Completar</button>` : 
-                                `<button class="boton-completar" onclick="marcarPendiente(${tarea.id})">↩ Pendiente</button>`
+                                `<button class="boton-completar" onclick="marcarPendiente(${tarea.id})">↩ Completada</button>`
                             }
                             <button class="boton-eliminar" onclick="eliminarTarea(${tarea.id})">✗ Eliminar</button>
                         </div>
